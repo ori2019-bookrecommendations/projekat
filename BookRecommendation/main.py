@@ -39,9 +39,8 @@ def data_cleanup(ratings, tags, book_tags):
     row_index = book_tags[book_tags['tag_id'].map(lambda x: x in tag_ids)].index
     book_tags.drop(row_index, inplace=True)
 
-
     #TODO Combine similar tags
-
+    
     return ratings, tags, book_tags
 
 
