@@ -1,4 +1,5 @@
 import pandas as pd
+from BookRecommendation.recommendation_algorithms import popularity, contentBasedFiltering
 from sklearn.model_selection import train_test_split
 from BookRecommendation.recommendation_algorithms import popularity, collaborativeFiltering
 
@@ -51,6 +52,7 @@ def save(ratings, tags, book_tags):
 
 
 if __name__ == "__main__":
+
     books, book_tags, ratings, tags, to_read, users = load_data()
     ratings, tags, book_tags = data_cleanup(ratings, tags, book_tags)
     save(ratings, tags, book_tags)
