@@ -1,5 +1,5 @@
 import pandas as pd
-from recommendation_algorithms import popularity
+from BookRecommendation.recommendation_algorithms import popularity, contentBasedFiltering
 
 
 def load_data():
@@ -37,6 +37,7 @@ def save(ratings, tags, book_tags):
 
 
 if __name__ == "__main__":
+
     books, book_tags, ratings, tags, to_read, users = load_data()
     ratings, tags, book_tags = data_cleanup(ratings, tags, book_tags)
     save(ratings, tags, book_tags)
@@ -49,3 +50,4 @@ if __name__ == "__main__":
     # Highest rated
     recommendations = popularity.highest_rated(books, ratings)
     print(recommendations.head(n=10))
+
