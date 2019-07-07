@@ -5,6 +5,7 @@ from surprise.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 from math import sqrt
 import pickle
+from BookRecommendation.book import Book
 
 
 class SVDCollaborativeFiltering:
@@ -15,7 +16,7 @@ class SVDCollaborativeFiltering:
     def __init__(self, ratings):
         # Surprise library does not allow using data frames as training and test set values
         reader = Reader(rating_scale=(1, 5))
-        data = Dataset.load_from_df(ratings[['book_id', 'user_id', 'rating']], reader)
+        data = Dataset.load_from_df(ratings[['user_id', 'book_id', 'rating']], reader)
 
         self.train, self.test = train_test_split(data, test_size=.20)
         self.model = SVD()
@@ -30,20 +31,20 @@ class SVDCollaborativeFiltering:
         # Trains the model on the training set (80% of the total ratings data)
         self.model.fit(self.train)
 
-    def predict(self, user_id, books, ratings):
+    def predict(self, user_id, books, ratings, already_read=None):
         # Predicts recommended books for a given user
 
         # Gets all unread books
-        already_read = ratings[ratings['user_id'] == user_id]['book_id'].unique()
-        prediction = books[['book_id', 'authors', 'title']].copy()
-        prediction = prediction.reset_index()
+        if already_read is None:
+            already_read = ratings[ratings['user_id'] == user_id]['book_id'].unique()
+
+        prediction = books[['book_id', 'title', 'authors', 'average_rating', 'image_url']].copy()
         prediction = prediction[~prediction['book_id'].isin(already_read)]
 
         # Predicts a rating for each book and sorts them
         prediction['predict'] = prediction['book_id'].apply(lambda x: self.model.predict(user_id, x).est)
-        prediction = prediction.drop('book_id', axis=1)
         prediction = prediction.sort_values('predict', ascending=False)
-        return prediction
+        return convert(prediction)
 
     def save(self, location):
         # Fully saves the model
@@ -153,26 +154,54 @@ class NeuralCollaborativeFiltering:
         actual_rating = test_set.rating
         return mean_absolute_error(actual_rating, prediction), sqrt(mean_squared_error(actual_rating, prediction)),
 
-    def train_model(self, training_set, batch, epochs_num, is_verbose, validation_split_percent):
+    def train_model(self, training_set, batch, epochs_num):
         # Trains the model on a given training data frame
         # Depending on the hardware, different batch sizes will lead to faster fitting
         self.model.fit([training_set.user_id, training_set.book_id], training_set.rating,
                        batch_size=batch,
                        epochs=epochs_num,
-                       verbose=is_verbose,
-                       validation_split=validation_split_percent)
+                       verbose=1,
+                       validation_split=0.1)
 
-    def predict(self, user, books, ratings):
+    def predict(self, user, books, ratings, prediction_num, already_read=None, graph=None):
         # Predicts top ten unread books for a given user ID
-        already_read = ratings[ratings['user_id'] == user]['book_id'].unique()
-        book_data = np.array(list(set(books[~books['book_id'].isin(already_read)].book_id)))
-        user_data = np.array([user for i in range(len(book_data))])
+        if graph is None:
+            if already_read is None:
+                already_read = ratings[ratings['user_id'] == user]['book_id'].unique()
 
-        predictions = self.model.predict([user_data, book_data], batch_size=512)
-        predictions = np.array([item[0] for item in predictions])
-        recommended_book_ids = (-predictions).argsort()[:10]
+            book_data = np.array(list(set(books[~books['book_id'].isin(already_read)].book_id)))
+            user_data = np.array([user for i in range(len(book_data))])
 
-        return recommended_book_ids, predictions[recommended_book_ids]
+            predictions = self.model.predict([user_data, book_data], batch_size=512)
+            predictions = np.array([item[0] for item in predictions])
+            recommended_book_ids = (-predictions).argsort()
+
+            recommended_books = books[books['book_id'].isin(recommended_book_ids)]
+            result = []
+            for _, book in recommended_books.iterrows():
+                b = Book(book['book_id'], book['title'], book['authors'], book['average_rating'], book['image_url'])
+                result.append(b)
+
+            return result
+        else:
+            with graph.as_default():
+                if already_read is None:
+                    already_read = ratings[ratings['user_id'] == user]['book_id'].unique()
+
+                book_data = np.array(list(set(books[~books['book_id'].isin(already_read)].book_id)))
+                user_data = np.array([user for i in range(len(book_data))])
+
+                predictions = self.model.predict([user_data, book_data], batch_size=512)
+                predictions = np.array([item[0] for item in predictions])
+                recommended_book_ids = (-predictions).argsort()[:prediction_num]
+
+                recommended_books = books[books['book_id'].isin(recommended_book_ids)]
+                result = []
+                for _, book in recommended_books.iterrows():
+                    b = Book(book['book_id'], book['title'], book['authors'], book['average_rating'], book['image_url'])
+                    result.append(b)
+
+                return result
 
     def save(self, location):
         # Fully saves the model
@@ -181,3 +210,12 @@ class NeuralCollaborativeFiltering:
     def load(self, location):
         # Loads the model
         self.model = keras.models.load_model(location)
+
+
+def convert(recommendations):
+    result = []
+    for _, book in recommendations.iterrows():
+        b = Book(book['book_id'], book['title'], book['authors'], book['average_rating'], book['image_url'])
+        result.append(b)
+
+    return result
