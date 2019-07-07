@@ -33,6 +33,25 @@ Potrebno ih je smestiti u folder ```BookRecommendation/inputs/cf_models```
 
 
 ## Pokretanje aplikacije
+
+* Pokretanje web servera za preporuke knjiga
 ```
-python main.py
+python web.py
+```
+
+* Pokretanje konzolne preporuke knjiga
+```
+python predict.py -userID $userID -books $book1, $book2
+```
+
+* Pokretanje treniranja modela
+```
+python train.py cbf
+python train.py svd
+python train.py neumf $latent_factor_user $latent_factor_book $latent_factor_matrix_factorization $batch_size $number_of_epochs
+```
+
+* Pokretanje testiranja modela
+```
+python test.py
 ```
