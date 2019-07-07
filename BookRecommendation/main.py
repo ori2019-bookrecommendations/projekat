@@ -50,6 +50,10 @@ def save(ratings, tags, book_tags):
     tags.to_csv('./outputs/tags.csv', index=False)
     book_tags.to_csv('./outputs/book_tags.csv', index=False)
 
+def printRecommendations(recommendations, n=20):
+    for i in range (0, n):
+        print("%d. %s"  % (i+1, recommendations[i]))
+
 
 if __name__ == "__main__":
 
@@ -62,11 +66,22 @@ if __name__ == "__main__":
     # Baseline models, not personalized in any way
     # Most popular
     recommendations = popularity.most_popular(books, ratings)
-    print(recommendations.head(n=10))
+    print("-- Most popular --")
+    printRecommendations(recommendations)
+    print("-----------------------------------------------------------\n")
 
     # Highest rated
     recommendations = popularity.highest_rated(books, ratings)
-    print(recommendations.head(n=10))
+    print("-- Highest rated --")
+    printRecommendations(recommendations)
+    print("-----------------------------------------------------------\n")
+
+    # Content based filtering
+    cbf = contentBasedFiltering.load_model('./inputs/cbf/cbf')
+    recommendations = cbf.recommend(books, [3369])
+    print("-- Content based filtering --")
+    printRecommendations(recommendations)
+    print("-----------------------------------------------------------\n")
 
     ncf = collaborativeFiltering.NeuralCollaborativeFiltering(ratings, 20, 30, 6)
     svd = collaborativeFiltering.SVDCollaborativeFiltering(ratings)
@@ -89,4 +104,4 @@ if __name__ == "__main__":
     print(books[books['book_id'].isin(recommended_book_ids)][['title', 'authors']])
 
     results = svd.predict(desired_user_id, books, ratings)
-    print(results.head(10)[['title', 'authors']])
+    printRecommendations(results)
